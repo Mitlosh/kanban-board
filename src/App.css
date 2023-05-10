@@ -5,11 +5,8 @@
 }
 
 .app {
-  width: 100vw;
-  height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
 }
 
 .board {
@@ -21,7 +18,6 @@
   margin: 10px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   cursor: default;
 }
 
