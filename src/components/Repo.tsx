@@ -1,5 +1,3 @@
-import React from "react";
-
 const Repo = ({ repo }: any) => {
   return (
     <div>
