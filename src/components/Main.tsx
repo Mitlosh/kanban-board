@@ -106,18 +106,21 @@ const Main = () => {
     // Update the state with the new array of boards
     setBoards(newBoards);
   }
-
-  const dispatch: any = useDispatch();
-  const repos: any = useSelector((state: any) => state.repos.items);
-  const loading: any = useSelector((state: any) => state.repos.loading);
+  /*------------------------------------------------------------------------*/
   const [searchValue, setSearchValue] = useState("");
+  const dispatch: any = useDispatch();
+  const repos: any = useSelector((state: any) => state.repos.issues);
+  const loading: any = useSelector((state: any) => state.repos.loading);
 
   useEffect(() => {
-    dispatch(getRepos());
+    console.log("Page loaded.");
+    dispatch(getRepos("facebook/react"));
   }, []);
 
   const searchRepoHandler = () => {
-    dispatch(getRepos(searchValue));
+    console.log("Issues: ", repos);
+    console.log("Loading: ", loading);
+    // dispatch(getRepos(searchValue));
   };
 
   return (
@@ -128,11 +131,12 @@ const Main = () => {
           onChange={(e) => setSearchValue(e.target.value)}
           value={searchValue}
           type="text"
-          placeholder="Enter link"
+          placeholder="Enter repository URL"
         />
         <button onClick={() => searchRepoHandler()}>Search</button>
       </div>
-      {loading ? <h1>Loading...</h1> : repos.map((repo: any) => <Repo key={repo.id} repo={repo} />)}
+
+      {/* {loading ? <h1>Loading...</h1> : repos.data.map((repo: any) => <Repo key={repo.id} repo={repo} />)} */}
       <Container className="app">
         {boards.map((board) => (
           <div

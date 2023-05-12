@@ -2,10 +2,10 @@ const SET_REPOS = "SET_REPOS";
 const SET_LOADING = "SET_LOADING";
 
 const defaultState: {
-  items: any[];
+  issues: any[] | null;
   loading: boolean;
 } = {
-  items: [],
+  issues: null,
   loading: false,
 };
 
@@ -14,7 +14,7 @@ export const reposReducer = (state = defaultState, action: any) => {
     case SET_REPOS:
       return {
         ...state,
-        items: action.payload.items,
+        issues: action.payload.issues,
         loading: false,
       };
     case SET_LOADING:
@@ -27,5 +27,5 @@ export const reposReducer = (state = defaultState, action: any) => {
   }
 };
 
-export const setRepos = (repos: any) => ({ type: SET_REPOS, payload: repos });
+export const setRepos = (issuesArray: any[]) => ({ type: SET_REPOS, payload: issuesArray });
 export const setLoading = (loading: boolean) => ({ type: SET_LOADING, payload: loading });
