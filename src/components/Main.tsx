@@ -3,7 +3,6 @@ import { Container } from "react-bootstrap";
 import "../App.css";
 import { getRepos } from "../actions/repos";
 import { useDispatch, useSelector } from "react-redux";
-import Repo from "./Repo";
 
 interface Board {
   id: number;
