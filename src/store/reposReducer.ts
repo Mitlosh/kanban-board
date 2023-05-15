@@ -14,7 +14,7 @@ export const reposReducer = (state = defaultState, action: any) => {
     case SET_REPOS:
       return {
         ...state,
-        issues: action.payload.issues,
+        issues: action.payload,
         loading: false,
       };
     case SET_LOADING:

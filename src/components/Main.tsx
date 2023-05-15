@@ -3,163 +3,169 @@ import { Container } from "react-bootstrap";
 import "../App.css";
 import { getRepos } from "../actions/repos";
 import { useDispatch, useSelector } from "react-redux";
+import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
 
-interface Board {
-  id: number;
-  title: string;
-  cards: Card[];
+interface Column {
+  name: string;
+  items: any[];
 }
 
-interface Card {
-  id: number;
-  title: string;
-  description: string;
-}
+const itemsFromBackend = [
+  { id: "1", content: "First task" },
+  { id: "2", content: "Second task" },
+  { id: "3", content: "Third task" },
+  { id: "4", content: "Fourth task" },
+];
 
 const Main = () => {
-  const [boards, setBoards] = useState([
-    {
-      id: 1,
-      title: "To Do",
-      cards: [
-        { id: 1, title: "London", description: "This is the London" },
-        { id: 2, title: "Kyiv", description: "This is the Kyiv" },
-        { id: 3, title: "Lutsk", description: "This is the Lutsk" },
-      ],
-    },
-    {
-      id: 2,
-      title: "In Progress",
-      cards: [
-        { id: 4, title: "Paris", description: "This is the Paris" },
-        { id: 5, title: "Milan", description: "This is the Milan" },
-        { id: 6, title: "Lviv", description: "This is the Lviv" },
-      ],
-    },
-    {
-      id: 3,
-      title: "Done",
-      cards: [
-        { id: 7, title: "Warsaw", description: "This is the Warsaw" },
-        { id: 8, title: "Istanbul", description: "This is the Istanbul" },
-        { id: 9, title: "Tokyo", description: "This is the Tokyo" },
-      ],
-    },
-  ]);
-  const [currentBoard, setCurrentBoard] = useState<Board | null>(null);
-  const [currentCard, setCurrentCard] = useState<Card | null>(null);
+  const issuesArr: any[] = useSelector((state: any) => state.repos.issues);
 
-  function dragOverHandler(e: React.DragEvent<HTMLDivElement>): void {
-    e.preventDefault();
-
-    if ((e.target as HTMLDivElement).className === "card") {
-      (e.target as HTMLDivElement).style.boxShadow = "0 2px 3px lightgray";
-    }
-  }
-
-  function dragLeaveHandler(e: React.DragEvent<HTMLDivElement>): void {
-    (e.target as HTMLDivElement).style.boxShadow = "none";
-  }
-
-  function dragStartHandler(e: React.DragEvent<HTMLDivElement>, board: Board, card: Card): void {
-    setCurrentBoard(board);
-    setCurrentCard(card);
-
-    (e.target as HTMLDivElement).style.opacity = "0.01";
-  }
-
-  function dragEndHandler(e: React.DragEvent<HTMLDivElement>): void {
-    (e.target as HTMLDivElement).style.boxShadow = "none";
-    (e.target as HTMLDivElement).style.opacity = "1";
-  }
-
-  function dropHandler(e: React.DragEvent<HTMLDivElement>): void {
-    e.preventDefault();
-    (e.target as HTMLDivElement).style.boxShadow = "none";
-  }
-
-  function dropCardHandler(board: Board): void {
-    if (!currentBoard || !currentCard || board === currentBoard) {
-      return;
-    }
-
-    // Create new copies of the cards arrays for the modified boards
-    const newBoardCards = [...board.cards, currentCard];
-    const newCurrentBoardCards = currentBoard.cards.filter((card) => card !== currentCard);
-
-    // Create new copies of the board objects with the updated cards arrays
-    const newBoard = { ...board, cards: newBoardCards };
-    const newCurrentBoard = { ...currentBoard, cards: newCurrentBoardCards };
-
-    // Create a new array of boards with the updated board objects
-    const newBoards = boards.map((b) => {
-      if (b.id === board.id) {
-        return newBoard;
-      }
-      if (b.id === currentBoard.id) {
-        return newCurrentBoard;
-      }
-      return b;
-    });
-
-    // Update the state with the new array of boards
-    setBoards(newBoards);
-  }
-  /*------------------------------------------------------------------------*/
   const [searchValue, setSearchValue] = useState("");
   const dispatch: any = useDispatch();
-  const repos: any = useSelector((state: any) => state.repos.issues);
-  const loading: any = useSelector((state: any) => state.repos.loading);
+  const loading: boolean = useSelector((state: any) => state.repos.loading);
+
+  const openedIssues: any[] = issuesArr?.filter((issue: any) => issue.state === "open");
+  const closedIssues: any[] = issuesArr?.filter((issue: any) => issue.state === "closed");
+  const inProgressIssues: any[] = issuesArr?.filter((issue: any) => issue.assignees.length > 0);
+
+  const columnsFromBackend = {
+    [crypto.randomUUID().toString()]: {
+      name: "To do",
+      items: [],
+    },
+    [crypto.randomUUID().toString()]: {
+      name: "In Progress",
+      items: [],
+    },
+    [crypto.randomUUID().toString()]: {
+      name: "Done",
+      items: [],
+    },
+  };
+  const [columns, setColumns] = useState<{ [key: string]: Column }>(columnsFromBackend);
 
   useEffect(() => {
-    console.log("Page loaded.");
     dispatch(getRepos("facebook/react"));
+    console.log("Issues: ", issuesArr);
+    console.log("Columns: ", columns.name);
   }, []);
 
   const searchRepoHandler = () => {
-    console.log("Issues: ", repos);
-    console.log("Loading: ", loading);
+    console.log("Issues: ", issuesArr);
+    console.log("Columns: ", columns);
+
+    if (Array.isArray(issuesArr)) {
+      setColumns((prevColumns) => {
+        const updatedColumns = { ...prevColumns };
+
+        updatedColumns[Object.keys(prevColumns)[0]].items = openedIssues;
+        updatedColumns[Object.keys(prevColumns)[1]].items = inProgressIssues;
+        updatedColumns[Object.keys(prevColumns)[2]].items = closedIssues;
+
+        return updatedColumns;
+      });
+    }
+
     // dispatch(getRepos(searchValue));
+  };
+
+  /*================================================================================= */
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+    if (source.droppableId !== destination.droppableId) {
+      const sourceColumn = columns[source.droppableId];
+      const destColumn = columns[destination.droppableId];
+      const sourceItems = [...sourceColumn.items];
+      const destItems = [...destColumn.items];
+      const [removed] = sourceItems.splice(source.index, 1);
+      destItems.splice(destination.index, 0, removed);
+      setColumns({
+        ...columns,
+        [source.droppableId]: {
+          ...sourceColumn,
+          items: sourceItems,
+        },
+        [destination.droppableId]: {
+          ...destColumn,
+          items: destItems,
+        },
+      });
+    } else {
+      const column = columns[source.droppableId];
+      const copiedItems = [...column.items];
+      const [removed] = copiedItems.splice(source.index, 1);
+      copiedItems.splice(destination.index, 0, removed);
+      setColumns({
+        ...columns,
+        [source.droppableId]: {
+          ...column,
+          items: copiedItems,
+        },
+      });
+    }
   };
 
   return (
     <>
-      <h1>Github Kanban Board</h1>
-      <div>
-        <input
-          onChange={(e) => setSearchValue(e.target.value)}
-          value={searchValue}
-          type="text"
-          placeholder="Enter repository URL"
-        />
-        <button onClick={() => searchRepoHandler()}>Search</button>
-      </div>
+      <Container>
+        <div>
+          <h1>Github Kanban Board</h1>
+          <input
+            onChange={(e) => setSearchValue(e.target.value)}
+            value={searchValue}
+            type="text"
+            placeholder="Enter repository URL"
+          />
+          <button onClick={() => searchRepoHandler()}>Search</button>
+        </div>
 
-      {/* {loading ? <h1>Loading...</h1> : repos.data.map((repo: any) => <Repo key={repo.id} repo={repo} />)} */}
-      <Container className="app">
-        {boards.map((board) => (
-          <div
-            onDrop={() => dropCardHandler(board)}
-            onDragLeave={(e) => dragLeaveHandler(e)}
-            className="board"
-            key={board.id}>
-            <h2 className="board__title">{board.title}</h2>
-            {board.cards.map((card) => (
-              <div
-                onDragStart={(e) => dragStartHandler(e, board, card)}
-                onDragEnd={(e) => dragEndHandler(e)}
-                onDragOver={(e) => dragOverHandler(e)}
-                onDragLeave={(e) => dragLeaveHandler(e)}
-                onDrop={(e) => dropHandler(e)}
-                draggable={true}
-                className="card"
-                key={card.id}>
-                <h3>{card.title}</h3>
-                <p>{card.description}</p>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <DragDropContext onDragEnd={(result) => onDragEnd(result)}>
+            {Object.entries(columns)?.map(([id, column]) => (
+              <div key={id}>
+                <h2>{column.name}</h2>
+                <Droppable droppableId={id}>
+                  {(provided, snapshot) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      style={{
+                        background: snapshot.isDraggingOver ? "lightblue" : "lightgrey",
+                        padding: 4,
+                        width: 250,
+                        minHeight: 500,
+                      }}>
+                      {column.items?.map((item, index) => (
+                        <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              style={{
+                                userSelect: "none",
+                                padding: 16,
+                                margin: "0 0 8px 0",
+                                minHeight: "50px",
+                                backgroundColor: snapshot.isDragging ? "#263B4A" : "#456C86",
+                                color: "white",
+                                ...provided.draggableProps.style,
+                              }}>
+                              {item.title}
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               </div>
             ))}
-          </div>
-        ))}
+          </DragDropContext>
+        </div>
       </Container>
     </>
   );
