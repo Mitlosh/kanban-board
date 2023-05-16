@@ -1,59 +1,47 @@
-import React, { useState, useEffect } from "react";
-import { Container } from "react-bootstrap";
 import "../App.css";
+import React, { useState, useEffect } from "react";
 import { getRepos } from "../actions/repos";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useDispatch, useSelector } from "react-redux";
+import { Button, Col, Container, Form, Row } from "react-bootstrap";
 import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
+import IssueCard from "./IssueCard";
 
 interface Column {
   name: string;
   items: any[];
 }
 
-const itemsFromBackend = [
-  { id: "1", content: "First task" },
-  { id: "2", content: "Second task" },
-  { id: "3", content: "Third task" },
-  { id: "4", content: "Fourth task" },
-];
+const columnsFromBackend = {
+  [crypto.randomUUID().toString()]: {
+    name: "To do",
+    items: [],
+  },
+  [crypto.randomUUID().toString()]: {
+    name: "In Progress",
+    items: [],
+  },
+  [crypto.randomUUID().toString()]: {
+    name: "Done",
+    items: [],
+  },
+};
 
 const Main = () => {
-  const issuesArr: any[] = useSelector((state: any) => state.repos.issues);
-
+  const [columns, setColumns] = useLocalStorage<{ [key: string]: Column }>("issues", columnsFromBackend);
   const [searchValue, setSearchValue] = useState("");
+  const [owner, setOwner] = useState("");
+  const [repo, setRepo] = useState("");
+
   const dispatch: any = useDispatch();
+  const issuesArr: any[] = useSelector((state: any) => state.repos.issues);
   const loading: boolean = useSelector((state: any) => state.repos.loading);
 
   const openedIssues: any[] = issuesArr?.filter((issue: any) => issue.state === "open");
   const closedIssues: any[] = issuesArr?.filter((issue: any) => issue.state === "closed");
   const inProgressIssues: any[] = issuesArr?.filter((issue: any) => issue.assignees.length > 0);
 
-  const columnsFromBackend = {
-    [crypto.randomUUID().toString()]: {
-      name: "To do",
-      items: [],
-    },
-    [crypto.randomUUID().toString()]: {
-      name: "In Progress",
-      items: [],
-    },
-    [crypto.randomUUID().toString()]: {
-      name: "Done",
-      items: [],
-    },
-  };
-  const [columns, setColumns] = useState<{ [key: string]: Column }>(columnsFromBackend);
-
-  useEffect(() => {
-    dispatch(getRepos("facebook/react"));
-    console.log("Issues: ", issuesArr);
-    console.log("Columns: ", columns.name);
-  }, []);
-
-  const searchRepoHandler = () => {
-    console.log("Issues: ", issuesArr);
-    console.log("Columns: ", columns);
-
+  const updateColumns = () => {
     if (Array.isArray(issuesArr)) {
       setColumns((prevColumns) => {
         const updatedColumns = { ...prevColumns };
@@ -61,16 +49,28 @@ const Main = () => {
         updatedColumns[Object.keys(prevColumns)[0]].items = openedIssues;
         updatedColumns[Object.keys(prevColumns)[1]].items = inProgressIssues;
         updatedColumns[Object.keys(prevColumns)[2]].items = closedIssues;
+        console.log("Updated Columns: ", updatedColumns);
 
         return updatedColumns;
       });
     }
-
-    // dispatch(getRepos(searchValue));
   };
 
-  /*================================================================================= */
+  useEffect(() => {
+    updateColumns();
+  }, [issuesArr]);
 
+  const searchRepoHandler = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    updateColumns();
+    if (searchValue === "") return;
+    const [owner, repo] = searchValue.split("/").slice(-2);
+    setOwner(owner);
+    setRepo(repo);
+    dispatch(getRepos(owner, repo));
+  };
+
+  /*================================= Drag and Drop logic ===================================== */
   const onDragEnd = (result: any) => {
     if (!result.destination) return;
     const { source, destination } = result;
@@ -111,59 +111,82 @@ const Main = () => {
     <>
       <Container>
         <div>
-          <h1>Github Kanban Board</h1>
-          <input
-            onChange={(e) => setSearchValue(e.target.value)}
-            value={searchValue}
-            type="text"
-            placeholder="Enter repository URL"
-          />
-          <button onClick={() => searchRepoHandler()}>Search</button>
+          <h1 className="text-center my-3">Github Kanban Board</h1>
+          <Form className="d-flex align-items-start gap-3 my-3">
+            <Form.Group style={{ width: "80%" }} controlId="formBasicEmail">
+              <Form.Control
+                onChange={(e) => setSearchValue(e.target.value)}
+                value={searchValue}
+                type="text"
+                placeholder="Enter repository URL"
+              />
+              <Form.Text className="text-muted">Example: https://github.com/facebook/react</Form.Text>
+            </Form.Group>
+            <Button style={{ width: "20%" }} variant="primary" type="submit" onClick={(e) => searchRepoHandler(e)}>
+              Search
+            </Button>
+          </Form>
+          {owner && repo && (
+            <div style={{ color: "blue" }}>
+              <a href={searchValue.split("/").slice(0, -1).join("/")} target="_blank" rel="noreferrer">
+                {owner}
+              </a>
+              {">"}
+              <a href={searchValue} target="_blank" rel="noreferrer">
+                {repo}
+              </a>
+            </div>
+          )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <DragDropContext onDragEnd={(result) => onDragEnd(result)}>
-            {Object.entries(columns)?.map(([id, column]) => (
-              <div key={id}>
-                <h2>{column.name}</h2>
-                <Droppable droppableId={id}>
-                  {(provided, snapshot) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      style={{
-                        background: snapshot.isDraggingOver ? "lightblue" : "lightgrey",
-                        padding: 4,
-                        width: 250,
-                        minHeight: 500,
-                      }}>
-                      {column.items?.map((item, index) => (
-                        <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              style={{
-                                userSelect: "none",
-                                padding: 16,
-                                margin: "0 0 8px 0",
-                                minHeight: "50px",
-                                backgroundColor: snapshot.isDragging ? "#263B4A" : "#456C86",
-                                color: "white",
-                                ...provided.draggableProps.style,
-                              }}>
-                              {item.title}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            ))}
+        <div className="d-flex justify-content-center gap-5">
+          <DragDropContext onDragEnd={(result: any) => onDragEnd(result)}>
+            {loading ? (
+              <h4>Loading</h4>
+            ) : (
+              Object.entries(columns)?.map(([id, column]) => (
+                <div className="text-center" key={id}>
+                  <h2 className="my-3">{column.name}</h2>
+                  <Droppable droppableId={id}>
+                    {(provided: any, snapshot: any) => (
+                      <Row
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          border: "1px solid lightgrey",
+                          background: snapshot.isDraggingOver ? "lightblue" : "#f1f1f1",
+                          padding: "12px 0",
+                          width: 320,
+                          minHeight: 500,
+                        }}>
+                        <Col>
+                          {column.items?.map((item, index) => (
+                            <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                              {(provided: any, snapshot: any) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={{
+                                    borderRadius: "8px",
+                                    backgroundColor: snapshot.isDragging ? "#6caad6" : "#fff",
+                                    ...provided.draggableProps.style,
+                                  }}>
+                                  <IssueCard issue={item} />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </Col>
+                      </Row>
+                    )}
+                  </Droppable>
+                </div>
+              ))
+            )}
           </DragDropContext>
         </div>
       </Container>
